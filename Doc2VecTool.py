@@ -93,6 +93,19 @@ def get_all_files(path):
             file_paths.append(os.path.join(path, name))
     return file_paths
 
+"""
+    Returns all the folders in the specified path.
+"""
+def get_all_folders(path):
+    folders = []
+
+    for folder_path in os.listdir(path):
+        folder_path = os.path.join(path, folder_path)
+        if os.path.isdir(folder_path):
+            folders.append(folder_path)
+
+    return folders
+
 
 def preprocess_line(line, tokenize=True):
     punctuation = "`~!@#$%^&*()_-=+[]{}\|;:'\"|<>,./?åαβ"
@@ -179,6 +192,7 @@ def retrain(epochs, text_file, model_path, save_model_name):
 
     model.save(save_model_name)
 
+
 def start_training(text_file_name, model_file_name, epochs, vector_size, window_size, min_count, dm):
     cores = multiprocessing.cpu_count()
 
@@ -186,7 +200,7 @@ def start_training(text_file_name, model_file_name, epochs, vector_size, window_
     lines = LabeledLineDocument(text_file_name)
 
     model = Doc2Vec(lines, size=vector_size, window=window_size, min_count=min_count, workers=cores, dm=dm)
-    model.build_vocab(lines)
+    # model.build_vocab(lines)
 
     print('...training')
 
