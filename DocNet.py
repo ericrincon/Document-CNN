@@ -52,14 +52,14 @@ class LossHistory(Callback):
 
 class DocNet:
     def __init__(self, doc_vector_size=100, filter_sizes=[2, 3, 4, 5, 6], dropout_p=0.5, doc_max_size=50,
-                 n_feature_maps=32, n_classes=2, embedding=False, graph=True, hidden_layer_sizes=[]):
+                 n_feature_maps=2, n_classes=2, embedding=False, graph=True, hidden_layer_sizes=[]):
         self.is_graph = graph
         self.model = self.create_model(doc_vector_size=doc_vector_size, filter_sizes=filter_sizes, dropout_p=dropout_p,
                                        doc_max_size=doc_max_size, n_feature_maps=n_feature_maps, n_classes=n_classes,
                                        embedding=embedding, nn_layer_sizes=hidden_layer_sizes)
 
     def create_model(self, doc_vector_size=100, filter_sizes=[2, 3, 4, 5, 6], dropout_p=0.5, doc_max_size=50,
-                     n_feature_maps=4, n_classes=2, activation='relu',
+                     n_feature_maps=2, n_classes=2, activation='relu',
                      embedding=True, nn_layer_sizes=[100]):
         cnn_filters = []
 

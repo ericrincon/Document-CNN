@@ -13,11 +13,12 @@ def main():
     window_size = 10
     min_count = 0
     dm = 1
+    shuffle_lines = True
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'i:m:e:s:w:c:d:', ['input_file=', 'model_name=', 'epochs=',
+        opts, args = getopt.getopt(sys.argv[1:], 'i:m:e:s:w:c:d:t:', ['input_file=', 'model_name=', 'epochs=',
                                                                   'd2v_vector_size=', 'window_size=', 'min_count=',
-                                                                  'dm='])
+                                                                  'dm=', 'shuffle='])
     except getopt.GetoptError as e:
         print(e)
         sys.exit(2)
@@ -37,10 +38,16 @@ def main():
             min_count = int(arg)
         elif opt in ('-d', '--dm'):
             dm = int(arg)
+        elif opt in ('-t', '--shuffle'):
+            option = int(arg)
+
+            if option == 0:
+                shuffle_lines = False
         else:
             sys.exit(2)
 
-    Doc2VecTool.start_training(text_file_path, model_name, epochs, d2v_vector_size, window_size, min_count, dm)
+    Doc2VecTool.start_training(text_file_path, model_name, epochs, d2v_vector_size, window_size, min_count, dm,
+                               shuffle_lines=shuffle_lines)
 
 
 

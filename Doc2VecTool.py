@@ -13,7 +13,7 @@ from nltk.tokenize import sent_tokenize
 
 
 class LabeledLineDocument(object):
-    def __init__(self, source):
+    def __init__(self, source, shuffle_lines=True):
 
 
         self.n_lines = 0
@@ -28,7 +28,8 @@ class LabeledLineDocument(object):
             for line_number, line in enumerate(file):
                 self.n_lines += 1
                 self.n_list.append(line_number)
-        shuffle(self.n_list)
+        if shuffle_lines:
+            shuffle(self.n_list)
 
 
     def __iter__(self):
@@ -193,11 +194,12 @@ def retrain(epochs, text_file, model_path, save_model_name):
     model.save(save_model_name)
 
 
-def start_training(text_file_name, model_file_name, epochs, vector_size, window_size, min_count, dm):
+def start_training(text_file_name, model_file_name, epochs, vector_size, window_size, min_count, dm,
+                   shuffle_lines=True):
     cores = multiprocessing.cpu_count()
 
     # Read preprocessed text file with gensim TaggedLineDocument
-    lines = LabeledLineDocument(text_file_name)
+    lines = LabeledLineDocument(text_file_name, shuffle_lines=shuffle_lines)
 
     model = Doc2Vec(lines, size=vector_size, window=window_size, min_count=min_count, workers=cores, dm=dm)
     # model.build_vocab(lines)
@@ -208,7 +210,9 @@ def start_training(text_file_name, model_file_name, epochs, vector_size, window_
         print('epoch: ', epoch + 1)
 
         model.train(lines)
-        shuffle(lines.n_list)
+
+        if shuffle_lines:
+            shuffle(lines.n_list)
 
     model.save(model_file_name)
 
