@@ -20,7 +20,6 @@ def main():
         sys.exit(2)
 
     for opt, arg in opts:
-        print(arg)
         if opt in ('-f', '--folders_path'):
             folders_sub_path = arg
         elif opt in ('-o', 'output_file_name'):

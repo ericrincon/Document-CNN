@@ -12,7 +12,7 @@ def main():
     d2v_vector_size = 100
     window_size = 10
     min_count = 0
-    dm = 0
+    dm = 1
 
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'i:m:e:s:w:c:d:', ['input_file=', 'model_name=', 'epochs=',

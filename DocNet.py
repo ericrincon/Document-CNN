@@ -52,16 +52,18 @@ class LossHistory(Callback):
 
 class DocNet:
     def __init__(self, doc_vector_size=100, filter_sizes=[2, 3, 4, 5, 6], dropout_p=0.5, doc_max_size=50,
-                 n_feature_maps=32, n_classes=2):
-        self.model = self.create_model(doc_vector_size, filter_sizes, dropout_p, doc_max_size,
-                                       n_feature_maps, n_classes)
+                 n_feature_maps=32, n_classes=2, embedding=False, graph=True, hidden_layer_sizes=[]):
+        self.is_graph = graph
+        self.model = self.create_model(doc_vector_size=doc_vector_size, filter_sizes=filter_sizes, dropout_p=dropout_p,
+                                       doc_max_size=doc_max_size, n_feature_maps=n_feature_maps, n_classes=n_classes,
+                                       embedding=embedding, nn_layer_sizes=hidden_layer_sizes)
 
     def create_model(self, doc_vector_size=100, filter_sizes=[2, 3, 4, 5, 6], dropout_p=0.5, doc_max_size=50,
                      n_feature_maps=4, n_classes=2, activation='relu',
                      embedding=True, nn_layer_sizes=[100]):
         cnn_filters = []
 
-        if embedding:
+        if self.is_graph:
             model = Graph()
             model.add_input(name='data', input_shape=(1, doc_max_size, doc_vector_size))
 
@@ -79,10 +81,13 @@ class DocNet:
 
             # Add hidden layers for the final nn layers.
 
-            for layer_size in nn_layer_sizes:
-                fully_connected_nn.add(Dense(layer_size, input_dim=n_feature_maps * len(filter_sizes)))
-            fully_connected_nn.add(Activation(activation))
-            fully_connected_nn.add(Dropout(dropout_p))
+            for i, layer_size in enumerate(nn_layer_sizes):
+                if i == 0:
+                    fully_connected_nn.add(Dense(layer_size, input_dim=n_feature_maps * len(filter_sizes)))
+                else:
+                    fully_connected_nn.add(Dense(layer_size))
+                fully_connected_nn.add(Activation(activation))
+                fully_connected_nn.add(Dropout(dropout_p))
             fully_connected_nn.add(Dense(n_classes))
             fully_connected_nn.add(Activation('softmax'))
 
@@ -90,11 +95,11 @@ class DocNet:
                            inputs=['filter_unit_' + str(n) for n in filter_sizes])
             model.add_output(name='nn_output', input='fully_connected_nn')
         else:
-            # Still working on this part.
-            # Weird that I was able to get the graph version working but not the 'simple' sequential version
+            """
+                Will probably be deleted out. Still working on it...
+            """
             for i, filter_size in enumerate(filter_sizes):
                 cnn_filter = Sequential()
-             #   cnn_filters.append(cnn_filter)
                 cnn_filter.add(Convolution2D(n_feature_maps, filter_size, doc_vector_size,
                                              input_shape=(1, doc_max_size, doc_vector_size)))
                 cnn_filter.add(Activation(activation))
@@ -104,23 +109,31 @@ class DocNet:
 
             model = Sequential()
             model.add(Merge(cnn_filters, mode='concat'))
-            model.add(Dense(50))
-            model.add(Activation(activation))
-            model.add(Dropout(.5))
-            model.add(Flatten())
+
+            for layer_size in nn_layer_sizes:
+                model.add(Dense(layer_size))
+                model.add(Activation(activation))
+                model.add(Dropout(dropout_p))
+
             model.add(Dense(n_classes))
             model.add(Activation('softmax'))
+
 
         return model
 
     def train(self, X_train, Y_train, batch_size=32, n_epochs=10, model_name='cnn.h5py', plot=True, learning_rate=.1,
-              lr_decay=1e-6, momentum=.5, nesterov=True):
+              lr_decay=1e-6, momentum=.5, nesterov=True, valid_split=.1, verbose=1):
         sgd = SGD(lr=learning_rate, decay=lr_decay, momentum=momentum, nesterov=nesterov)
         loss_history = LossHistory()
-        self.model.compile(optimizer=sgd, loss={'nn_output': 'categorical_crossentropy'})
-        self.model.fit({'data': X_train, 'nn_output': Y_train}, batch_size=batch_size, nb_epoch=n_epochs,
-                       callbacks=[loss_history],
-                       validation_split=.2)
+
+        if self.is_graph:
+            self.model.compile(optimizer='adadelta', loss={'nn_output': 'categorical_crossentropy'})
+            self.model.fit({'data': X_train, 'nn_output': Y_train}, batch_size=batch_size, nb_epoch=n_epochs,
+                           callbacks=[loss_history], validation_split=valid_split, shuffle=True, verbose=verbose)
+        else:
+            self.model.compile(optimizer=sgd, loss='binary_crossentropy')
+            self.model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=n_epochs, callbacks=[loss_history],
+                           validation_split=valid_split, verbose=verbose)
 
         # Plot the the validation and training loss
 
@@ -140,14 +153,12 @@ class DocNet:
         self.model.save_weights(model_name)
 
     def test(self, X_test, Y_test, print_output=True):
+        predictions = None
 
-        sgd = SGD(lr=.01, decay=1e-6, momentum=.5, nesterov=True)
-
-        self.model.compile(optimizer=sgd, loss={'nn_output': 'categorical_crossentropy'})
-
-        self.model.load_weights('cnn.h5py')
-
-        predictions = self.predict_classes(X_test)
+        if self.is_graph:
+            predictions = self.predict_classes(X_test)
+        else:
+            predictions = self.model.predict_classes(X_test)
         accuracy = accuracy_score(Y_test, predictions)
         f1 = f1_score(Y_test, predictions)
         auc = roc_auc_score(Y_test, predictions)
