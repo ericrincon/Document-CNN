@@ -55,14 +55,16 @@ class LossHistory(Callback):
 
 class DocNet:
     def __init__(self, doc_vector_size=100, filter_sizes=[2, 3, 4, 5, 6], dropout_p=0.5, doc_max_size=50,
-                 n_feature_maps=2, n_classes=2, embedding=False, graph=True, hidden_layer_sizes=[], convolution=2):
+                 n_feature_maps=2, n_classes=2, embedding=False, graph=True, hidden_layer_sizes=[], convolution=2,
+                 activiation_func='relu'):
         self.is_graph = graph
 
         if convolution == 1:
             filter_sizes = [20, 30, 40, 50]
         self.model = self.create_model(doc_vector_size=doc_vector_size, filter_sizes=filter_sizes, dropout_p=dropout_p,
                                        doc_max_size=doc_max_size, n_feature_maps=n_feature_maps, n_classes=n_classes,
-                                       embedding=embedding, nn_layer_sizes=hidden_layer_sizes, convolution=convolution)
+                                       embedding=embedding, nn_layer_sizes=hidden_layer_sizes, convolution=convolution,
+                                       activation=activiation_func)
 
     def create_model(self, doc_vector_size, filter_sizes, dropout_p, doc_max_size,
                      n_feature_maps, n_classes, activation, embedding, nn_layer_sizes, convolution):
