@@ -7,8 +7,10 @@ import multiprocessing
 
 from random import shuffle
 from gensim import utils
+
 from gensim.models import Doc2Vec
 from gensim.models.doc2vec import TaggedDocument
+
 from nltk.tokenize import sent_tokenize
 
 
@@ -19,10 +21,6 @@ class LabeledLineDocument(object):
         self.n_lines = 0
         self.source = source
         self.n_list = []
-        """
-            Find out how many lines are the document but don't put them in memory.
-            Note to self: Probably a better way but this will suffice for now
-        """
 
         with utils.smart_open(self.source) as file:
             for line_number, line in enumerate(file):
@@ -30,7 +28,6 @@ class LabeledLineDocument(object):
                 self.n_list.append(line_number)
         if shuffle_lines:
             shuffle(self.n_list)
-
 
     def __iter__(self):
 
@@ -88,7 +85,8 @@ def get_all_files(path):
 
     for path, subdirs, files in os.walk(path):
         for name in files:
-            #Make sure hidden files do not make into the list
+
+            # Make sure hidden files do not make into the list
             if name[0] == '.':
                 continue
             file_paths.append(os.path.join(path, name))
@@ -122,6 +120,7 @@ def preprocess_line(line, tokenize=True):
 
     if tokenize:
         line_tokens = utils.to_unicode(final_line).split()
+
         return line_tokens
     else:
         return final_line
@@ -202,7 +201,6 @@ def start_training(text_file_name, model_file_name, epochs, vector_size, window_
     lines = LabeledLineDocument(text_file_name, shuffle_lines=shuffle_lines)
 
     model = Doc2Vec(lines, size=vector_size, window=window_size, min_count=min_count, workers=cores, dm=dm)
-    # model.build_vocab(lines)
 
     print('...training')
 
@@ -215,6 +213,7 @@ def start_training(text_file_name, model_file_name, epochs, vector_size, window_
             shuffle(lines.n_list)
 
     model.save(model_file_name)
+
 
 def write_documents_to_file(folder_path, output_file_name):
     files = get_all_files(folder_path)

@@ -28,9 +28,11 @@ def main():
     verbose = 1
     hidden_layers = [100]
     filters = [2, 3, 4, 5, 6]
+    convolution_type = 2
+
     options = ['input_folder=', 'd2v_model_path=', 'n_examples=', 'n_epochs=', 'learning_rate=', 'mini_batch_size=',
                'momentum=', 'lr_decay=', 'help=', 'test_folder=', 'doc_max_size=', 'graph=', 'cnn_model_name=',
-               'doc_vector_size=', 'verbose=', 'hidden_layer=', 'filter_sizes=']
+               'doc_vector_size=', 'verbose=', 'hidden_layers=', 'filter_sizes=', 'convolution_type=']
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'i:m:n:e:l:b:w:d:h:t:g:c:v:z:f:', options)
     except getopt.GetoptError:
@@ -87,6 +89,8 @@ def main():
 
             for filter in filters_sizes:
                 filters.append(int(filter))
+        elif opt == '--convolution_type':
+            convolution_type = int(arg)
 
         else:
             print('Error: {} not recognized'.format(opt))
@@ -97,9 +101,13 @@ def main():
 
     # Get files
     print('...reading files')
-    X_train, Y_train = get_neg_pos(folder_path, d2v_model_path, n_examples, doc_max)
+    if convolution_type == 2:
+        X_train, Y_train = get_neg_pos(folder_path, d2v_model_path, n_examples, doc_max)
+    else:
+        X_train, Y_train = read_docs_file(folder_path, d2v_model_path, doc_vector_size)
+
     doc_cnn = DocNet(doc_max_size=doc_max, n_feature_maps=2, graph=use_graph, doc_vector_size=doc_vector_size,
-                     hidden_layer_sizes=hidden_layers, filter_sizes=filters)
+                     hidden_layer_sizes=hidden_layers, filter_sizes=filters, convolution=convolution_type)
 
     print('...training')
     doc_cnn.train(X_train, Y_train, n_epochs=n_epochs, batch_size=mini_batch_size, learning_rate=learning_rate,
@@ -107,7 +115,10 @@ def main():
                   verbose=verbose)
 
     print('...testing')
-    X_test, Y_test = get_neg_pos(test_folder, d2v_model_path, n_examples, doc_max)
+    if convolution_type == 2:
+        X_test, Y_test = get_neg_pos(test_folder, d2v_model_path, n_examples, doc_max)
+    else:
+        X_test, Y_test = read_docs_file(folder_path, d2v_model_path, doc_vector_size)
     Y_test_array = numpy.zeros(Y_test.shape[0])
     Y_test_array[Y_test[:, 1] == 1] = 1
 
@@ -142,8 +153,8 @@ def get_neg_pos(folder_path, d2v_model_path, examples_limit=None, sentence_limit
     Y_train[:X_train_neg.shape[0], 0] = 1
     Y_train[X_train_neg.shape[0] + 1:, 1] = 1
 
-
     return X_train, Y_train
+
 
 def read_files(files, d2v_model, file_limit=None, sentence_limit=50):
     documents = []
@@ -177,6 +188,26 @@ def read_files(files, d2v_model, file_limit=None, sentence_limit=50):
         documents_tensor[i, :, :, :] = document
 
     return documents_tensor
+
+def read_docs_file(file_path, d2v_model_path, d2v_vector_size):
+    d2v_model = Doc2Vec.load(d2v_model_path)
+
+    file = open(file_path, 'r')
+    X_train = numpy.zeros((50000, d2v_vector_size))
+    Y_train = numpy.zeros((50000, 2))
+
+    for i, line in enumerate(file):
+        if i == 50000:
+            break
+
+        X_train[i, :] = d2v_model.infer_vector(line)
+
+        if i <= 24999:
+            Y_train[i, 0] = 1
+        else:
+            Y_train[i, 1] = 1
+    return X_train, Y_train
+
 
 if __name__ == '__main__':
     main()

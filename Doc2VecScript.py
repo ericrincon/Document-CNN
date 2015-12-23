@@ -11,7 +11,7 @@ def main():
     epochs = 20
     d2v_vector_size = 100
     window_size = 10
-    min_count = 0
+    min_count = 1
     dm = 1
     shuffle_lines = True
 
