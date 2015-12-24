@@ -29,10 +29,12 @@ def main():
     hidden_layers = [100]
     filters = [2, 3, 4, 5, 6]
     convolution_type = 2
+    optimization_method = 'adagrad'
 
     options = ['input_folder=', 'd2v_model_path=', 'n_examples=', 'n_epochs=', 'learning_rate=', 'mini_batch_size=',
                'momentum=', 'lr_decay=', 'help=', 'test_folder=', 'doc_max_size=', 'graph=', 'cnn_model_name=',
-               'doc_vector_size=', 'verbose=', 'hidden_layers=', 'filter_sizes=', 'convolution_type=']
+               'doc_vector_size=', 'verbose=', 'hidden_layers=', 'filter_sizes=', 'convolution_type=',
+               'optimization_method=']
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'i:m:n:e:l:b:w:d:h:t:g:c:v:z:f:', options)
     except getopt.GetoptError:
@@ -91,6 +93,8 @@ def main():
                 filters.append(int(filter))
         elif opt == '--convolution_type':
             convolution_type = int(arg)
+        elif opt == '--optimization_method':
+            optimization_method = arg
 
         else:
             print('Error: {} not recognized'.format(opt))
@@ -104,21 +108,22 @@ def main():
     if convolution_type == 2:
         X_train, Y_train = get_neg_pos(folder_path, d2v_model_path, n_examples, doc_max)
     else:
-        X_train, Y_train = read_docs_file(folder_path, d2v_model_path, doc_vector_size)
+        X_train, Y_train = read_docs_file(folder_path, d2v_model_path, doc_vector_size, n_examples)
 
+    print('...creating model')
     doc_cnn = DocNet(doc_max_size=doc_max, n_feature_maps=2, graph=use_graph, doc_vector_size=doc_vector_size,
                      hidden_layer_sizes=hidden_layers, filter_sizes=filters, convolution=convolution_type)
 
     print('...training')
     doc_cnn.train(X_train, Y_train, n_epochs=n_epochs, batch_size=mini_batch_size, learning_rate=learning_rate,
                   lr_decay=learning_rate_decay, momentum=momentum, nesterov=True, model_name=cnn_model_name,
-                  verbose=verbose)
+                  verbose=verbose, optimization_method=optimization_method)
 
     print('...testing')
     if convolution_type == 2:
         X_test, Y_test = get_neg_pos(test_folder, d2v_model_path, n_examples, doc_max)
     else:
-        X_test, Y_test = read_docs_file(folder_path, d2v_model_path, doc_vector_size)
+        X_test, Y_test = read_docs_file(folder_path, d2v_model_path, doc_vector_size, n_examples)
     Y_test_array = numpy.zeros(Y_test.shape[0])
     Y_test_array[Y_test[:, 1] == 1] = 1
 
@@ -189,18 +194,21 @@ def read_files(files, d2v_model, file_limit=None, sentence_limit=50):
 
     return documents_tensor
 
-def read_docs_file(file_path, d2v_model_path, d2v_vector_size):
+def read_docs_file(file_path, d2v_model_path, d2v_vector_size, line_limit=None, steps=1):
     d2v_model = Doc2Vec.load(d2v_model_path)
 
     file = open(file_path, 'r')
-    X_train = numpy.zeros((50000, d2v_vector_size))
+    X_train = numpy.zeros((50000, steps, d2v_vector_size))
     Y_train = numpy.zeros((50000, 2))
 
     for i, line in enumerate(file):
         if i == 50000:
             break
+        if line_limit:
+            if i == line_limit:
+                break
 
-        X_train[i, :] = d2v_model.infer_vector(line)
+        X_train[i, :, :] = d2v_model.infer_vector(line)
 
         if i <= 24999:
             Y_train[i, 0] = 1

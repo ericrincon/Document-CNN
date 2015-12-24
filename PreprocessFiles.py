@@ -113,7 +113,7 @@ def preprocess_sentences(file_path, path, folder_output_path, all_sentences_file
 
 def preprocess_documents(file_path, all_sentences_file):
     print('writing_document to master file')
-    text_file = open(file_path, 'r')
+    text_file = open(file_path).read()
     parsed_processed_sentences = Doc2VecTool.preprocess_parse_sentences(text_file, False)
 
     sentence_to_write = parsed_processed_sentences.pop(0)
