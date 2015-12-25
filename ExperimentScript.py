@@ -30,11 +30,12 @@ def main():
     filters = [2, 3, 4, 5, 6]
     convolution_type = 2
     optimization_method = 'adagrad'
+    headless_plot = False
 
     options = ['input_folder=', 'd2v_model_path=', 'n_examples=', 'n_epochs=', 'learning_rate=', 'mini_batch_size=',
                'momentum=', 'lr_decay=', 'help=', 'test_folder=', 'doc_max_size=', 'graph=', 'cnn_model_name=',
                'doc_vector_size=', 'verbose=', 'hidden_layers=', 'filter_sizes=', 'convolution_type=',
-               'optimization_method=']
+               'optimization_method=', 'headless_plot=']
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'i:m:n:e:l:b:w:d:h:t:g:c:v:z:f:', options)
     except getopt.GetoptError:
@@ -95,6 +96,11 @@ def main():
             convolution_type = int(arg)
         elif opt == '--optimization_method':
             optimization_method = arg
+        elif opt == '--headless_plot':
+            option = int(arg)
+
+            if option == 1:
+                headless_plot = True
 
         else:
             print('Error: {} not recognized'.format(opt))
@@ -117,7 +123,7 @@ def main():
     print('...training')
     doc_cnn.train(X_train, Y_train, n_epochs=n_epochs, batch_size=mini_batch_size, learning_rate=learning_rate,
                   lr_decay=learning_rate_decay, momentum=momentum, nesterov=True, model_name=cnn_model_name,
-                  verbose=verbose, optimization_method=optimization_method)
+                  verbose=verbose, optimization_method=optimization_method, plot_headless=headless_plot)
 
     print('...testing')
     if convolution_type == 2:
