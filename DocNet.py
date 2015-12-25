@@ -1,6 +1,6 @@
 __author__ = 'ericrincon'
 
-import matplotlib.pyplot as plt
+import matplotlib
 
 import numpy
 
@@ -10,7 +10,7 @@ from keras.layers.core import Dense
 from keras.layers.core import Dropout
 from keras.layers.core import Activation
 from keras.layers.core import Flatten
-from keras.layers.core import Merge
+
 from keras.optimizers import SGD
 
 from keras.models import Graph
@@ -142,7 +142,7 @@ class DocNet:
             model.add(Dense(n_classes))
             model.add(Activation('softmax'))
 
-            """
+
             print(doc_vector_size)
             model = Sequential()
             # VGG-like convolution stack
@@ -156,13 +156,38 @@ class DocNet:
             model.add(Dropout(.5))
             model.add(Dense(2))
             model.add(Activation('softmax'))
+            """
+            model = Sequential()
+            model.add(Convolution2D(30, 3, 3, input_shape=(1, doc_max_size, doc_vector_size)))
+            model.add(Activation('relu'))
+            model.add(Convolution2D(30, 3, 3))
+            model.add(Activation('relu'))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Dropout(0.25))
+
+            model.add(Convolution2D(20, 3, 3))
+            model.add(Activation('relu'))
+            model.add(Convolution2D(20, 3, 3))
+            model.add(Activation('relu'))
+            model.add(MaxPooling2D(pool_size=(2, 2)))
+            model.add(Dropout(0.25))
+
+            model.add(Flatten())
+            # Note: Keras does automatic shape inference.
+            model.add(Dense(256))
+            model.add(Activation('relu'))
+            model.add(Dropout(0.5))
+
+            model.add(Dense(2))
+            model.add(Activation('softmax'))
 
 
 
         return model
 
     def train(self, X_train, Y_train, batch_size=32, n_epochs=10, model_name='cnn.h5py', plot=True, learning_rate=.1,
-              lr_decay=1e-6, momentum=.5, nesterov=True, valid_split=.1, verbose=1, optimization_method='adagrad'):
+              lr_decay=1e-6, momentum=.5, nesterov=True, valid_split=.1, verbose=1, optimization_method='adagrad',
+              plot_headless=False):
 
         if optimization_method == 'sgd':
             optim = SGD(lr=learning_rate, decay=lr_decay, momentum=momentum, nesterov=nesterov)
@@ -183,6 +208,10 @@ class DocNet:
         # Plot the the validation and training loss
 
         if plot:
+            if plot_headless:
+                matplotlib.use('Agg')
+            import matplotlib.pyplot as plt
+
             train_loss_history = loss_history.losses
             valid_loss_history = loss_history.val_losses
 

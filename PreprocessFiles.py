@@ -123,5 +123,6 @@ def preprocess_documents(file_path, all_sentences_file):
     all_sentences_file.write(sentence_to_write + '\n')
 
 
+
 if __name__ == '__main__':
     main()

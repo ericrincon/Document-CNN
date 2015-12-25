@@ -6,6 +6,7 @@ import linecache
 import multiprocessing
 
 from random import shuffle
+from random import sample
 from gensim import utils
 
 from gensim.models import Doc2Vec
