@@ -28,6 +28,7 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score
+from keras.callbacks import ModelCheckpoint
 
 
 class LossHistory(Callback):
@@ -194,6 +195,7 @@ class DocNet:
             optim = optimization_method
 
         loss_history = LossHistory()
+        checkpointer = ModelCheckpoint(filepath=model_name, verbose=1, save_best_only=True)
 
         if self.is_graph:
             self.model.compile(optimizer=optim, loss={'nn_output': 'categorical_crossentropy'})
@@ -223,7 +225,7 @@ class DocNet:
 
             plt.savefig(model_name + '_loss_plot.png')
 
-        self.model.save_weights(model_name, overwrite=True)
+        self.model.save_weights('final_' + model_name, overwrite=True)
 
     def test(self, X_test, Y_test, print_output=True):
         predictions = None
