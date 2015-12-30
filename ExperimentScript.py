@@ -32,11 +32,11 @@ def main():
     optimization_method = 'adagrad'
     headless_plot = False
     skipthought = False
-
+    dropout = .5
     options = ['input_folder=', 'd2v_model_path=', 'n_examples=', 'n_epochs=', 'learning_rate=', 'mini_batch_size=',
                'momentum=', 'lr_decay=', 'help=', 'test_folder=', 'doc_max_size=', 'graph=', 'cnn_model_name=',
                'doc_vector_size=', 'verbose=', 'hidden_layers=', 'filter_sizes=', 'convolution_type=',
-               'optimization_method=', 'headless_plot=', 'skipthoughts=']
+               'optimization_method=', 'headless_plot=', 'skipthoughts=', 'dropout=']
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'i:m:n:e:l:b:w:d:h:t:g:c:v:z:f:', options)
     except getopt.GetoptError:
@@ -107,7 +107,8 @@ def main():
 
             if option == 0:
                 skipthought = False
-
+        elif opt == '--dropout':
+            dropout = float(arg)
         else:
             print('Error: {} not recognized'.format(opt))
             sys.exit(2)
@@ -127,7 +128,8 @@ def main():
 
     print('...creating model')
     doc_cnn = DocNet(doc_max_size=doc_max, n_feature_maps=2, graph=use_graph, doc_vector_size=doc_vector_size,
-                     hidden_layer_sizes=hidden_layers, filter_sizes=filters, convolution=convolution_type)
+                     hidden_layer_sizes=hidden_layers, filter_sizes=filters, convolution=convolution_type,
+                     dropout_p=dropout)
 
     print('...training')
     doc_cnn.train(X_train, Y_train, n_epochs=n_epochs, batch_size=mini_batch_size, learning_rate=learning_rate,
