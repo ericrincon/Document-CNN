@@ -200,7 +200,8 @@ class DocNet:
         if self.is_graph:
             self.model.compile(optimizer=optim, loss={'nn_output': 'categorical_crossentropy'})
             self.model.fit({'data': X_train, 'nn_output': Y_train}, batch_size=batch_size, nb_epoch=n_epochs,
-                           callbacks=[loss_history], validation_split=valid_split, shuffle=True, verbose=verbose)
+                           callbacks=[loss_history, checkpointer], validation_split=valid_split, shuffle=True,
+                           verbose=verbose)
         else:
             self.model.compile(optimizer=optim, loss='binary_crossentropy')
             self.model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=n_epochs,
