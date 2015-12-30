@@ -203,8 +203,8 @@ class DocNet:
                            callbacks=[loss_history], validation_split=valid_split, shuffle=True, verbose=verbose)
         else:
             self.model.compile(optimizer=optim, loss='binary_crossentropy')
-            self.model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=n_epochs, callbacks=[loss_history],
-                           validation_split=valid_split, verbose=verbose)
+            self.model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=n_epochs,
+                           callbacks=[loss_history, checkpointer], validation_split=valid_split, verbose=verbose)
 
         # Plot the the validation and training loss
 
