@@ -28,7 +28,6 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score
-from keras.callbacks import ModelCheckpoint
 
 
 class LossHistory(Callback):
@@ -195,17 +194,11 @@ class DocNet:
             optim = optimization_method
 
         loss_history = LossHistory()
-        checkpointer = ModelCheckpoint(filepath=model_name, verbose=1, save_best_only=True)
 
-        if self.is_graph:
-            self.model.compile(optimizer=optim, loss={'nn_output': 'categorical_crossentropy'})
-            self.model.fit({'data': X_train, 'nn_output': Y_train}, batch_size=batch_size, nb_epoch=n_epochs,
-                           callbacks=[loss_history, checkpointer], validation_split=valid_split, shuffle=True,
-                           verbose=verbose)
-        else:
-            self.model.compile(optimizer=optim, loss='binary_crossentropy')
-            self.model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=n_epochs,
-                           callbacks=[loss_history, checkpointer], validation_split=valid_split, verbose=verbose)
+        self.model.compile(optimizer=optim, loss={'nn_output': 'categorical_crossentropy'})
+        self.model.fit({'data': X_train, 'nn_output': Y_train}, batch_size=batch_size, nb_epoch=n_epochs,
+                       callbacks=[loss_history], validation_split=valid_split, shuffle=True,
+                       verbose=verbose)
 
         # Plot the the validation and training loss
 
