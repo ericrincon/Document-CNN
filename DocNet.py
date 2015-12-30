@@ -21,7 +21,6 @@ from keras.layers.convolutional import Convolution1D
 from keras.layers.convolutional import MaxPooling2D
 from keras.layers.convolutional import MaxPooling1D
 
-
 from keras.callbacks import Callback
 
 from sklearn.metrics import f1_score
@@ -224,7 +223,7 @@ class DocNet:
 
             plt.savefig(model_name + '_loss_plot.png')
 
-        self.model.save_weights(model_name)
+        self.model.save_weights(model_name, overwrite=True)
 
     def test(self, X_test, Y_test, print_output=True):
         predictions = None
