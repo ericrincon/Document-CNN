@@ -20,6 +20,7 @@ from keras.layers.convolutional import MaxPooling2D
 from keras.layers.convolutional import MaxPooling1D
 
 from keras.callbacks import Callback
+from keras.callbacks import ModelCheckpoint
 
 from sklearn.metrics import f1_score
 from sklearn.metrics import precision_score
@@ -122,10 +123,11 @@ class DocNet:
             optim = optimization_method
 
         loss_history = LossHistory()
+        checkpointer = ModelCheckpoint(filepath=model_name, verbose=1, save_best_only=True)
 
         self.model.compile(optimizer=optim, loss={'nn_output': 'categorical_crossentropy'})
         self.model.fit({'data': X_train, 'nn_output': Y_train}, batch_size=batch_size, nb_epoch=n_epochs,
-                       callbacks=[loss_history], validation_split=valid_split, shuffle=True,
+                       callbacks=[loss_history, checkpointer], validation_split=valid_split, shuffle=True,
                        verbose=verbose)
 
         # Plot the the validation and training loss
