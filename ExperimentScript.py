@@ -109,6 +109,7 @@ def main():
                 skipthought = False
         elif opt == '--dropout':
             dropout = float(arg)
+            print(dropout)
         else:
             print('Error: {} not recognized'.format(opt))
             sys.exit(2)

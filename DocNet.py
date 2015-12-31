@@ -28,7 +28,6 @@ from sklearn.metrics import precision_score
 from sklearn.metrics import recall_score
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import accuracy_score
-from keras.callbacks import ModelCheckpoint
 
 
 class LossHistory(Callback):
@@ -55,10 +54,8 @@ class LossHistory(Callback):
 
 class DocNet:
     def __init__(self, doc_vector_size=100, filter_sizes=[2, 3, 4, 5, 6], dropout_p=0.5, doc_max_size=50,
-                 n_feature_maps=2, n_classes=2, embedding=False, graph=True, hidden_layer_sizes=[], convolution=2,
+                 n_feature_maps=2, n_classes=2, embedding=False, hidden_layer_sizes=[100], convolution=2,
                  activation_func='relu'):
-        self.is_graph = graph
-
         if convolution == 1:
             filter_sizes = [20, 30, 40, 50]
         self.model = self.create_model(doc_vector_size=doc_vector_size, filter_sizes=filter_sizes, dropout_p=dropout_p,
@@ -68,121 +65,53 @@ class DocNet:
 
     def create_model(self, doc_vector_size, filter_sizes, dropout_p, doc_max_size,
                      n_feature_maps, n_classes, activation, embedding, nn_layer_sizes, convolution):
-        cnn_filters = []
+        model = Graph()
 
-        if self.is_graph:
-            model = Graph()
+        if convolution == 2:
+            model.add_input(name='data', input_shape=(1, doc_max_size, doc_vector_size))
+        elif convolution == 1:
+            model.add_input(name='data', input_shape=(1, doc_vector_size))
+
+        for filter_size in filter_sizes:
+            node = containers.Sequential()
 
             if convolution == 2:
-                model.add_input(name='data', input_shape=(1, doc_max_size, doc_vector_size))
+                node.add(Convolution2D(n_feature_maps, filter_size, doc_vector_size, input_shape=(1, doc_max_size,
+                                                                                                  doc_vector_size)))
             elif convolution == 1:
-                model.add_input(name='data', input_shape=(1, doc_vector_size))
+                node.add(Convolution1D(n_feature_maps, filter_size, input_dim=doc_vector_size))
 
-            for filter_size in filter_sizes:
-                node = containers.Sequential()
+            node.add(Activation(activation))
 
+            if convolution == 2:
+                node.add(MaxPooling2D(pool_size=(doc_max_size - filter_size + 1, 1)))
+            elif convolution == 1:
+                node.add(MaxPooling1D(pool_length=doc_vector_size - filter_size + 1))
+
+            node.add(Flatten())
+            model.add_node(node, name='filter_unit_' + str(filter_size), input='data')
+
+        fully_connected_nn = containers.Sequential()
+
+        # Add hidden layers for the final nn layers.
+
+        for i, layer_size in enumerate(nn_layer_sizes):
+            if i == 0:
                 if convolution == 2:
-                    node.add(Convolution2D(n_feature_maps, filter_size, doc_vector_size, input_shape=(1, doc_max_size,
-                                                                                                      doc_vector_size)))
+                    fully_connected_nn.add(Dense(layer_size, input_dim=n_feature_maps * len(filter_sizes)))
+
                 elif convolution == 1:
-                    node.add(Convolution1D(n_feature_maps, filter_size, input_dim=doc_vector_size))
+                    fully_connected_nn.add(Dense(layer_size, input_dim=n_feature_maps * len(filter_sizes)))
+            else:
+                fully_connected_nn.add(Dense(layer_size))
+            fully_connected_nn.add(Activation(activation))
+            fully_connected_nn.add(Dropout(dropout_p))
+        fully_connected_nn.add(Dense(n_classes))
+        fully_connected_nn.add(Activation('softmax'))
 
-                node.add(Activation(activation))
-
-                if convolution == 2:
-                    node.add(MaxPooling2D(pool_size=(doc_max_size - filter_size + 1, 1)))
-                elif convolution == 1:
-                    node.add(MaxPooling1D(pool_length=doc_vector_size - filter_size + 1))
-
-                node.add(Flatten())
-                model.add_node(node, name='filter_unit_' + str(filter_size), input='data')
-
-            fully_connected_nn = containers.Sequential()
-
-            # Add hidden layers for the final nn layers.
-
-            for i, layer_size in enumerate(nn_layer_sizes):
-                if i == 0:
-                    if convolution == 2:
-                        fully_connected_nn.add(Dense(layer_size, input_dim=n_feature_maps * len(filter_sizes)))
-
-                    elif convolution == 1:
-                        fully_connected_nn.add(Dense(layer_size, input_dim=n_feature_maps * len(filter_sizes)))
-                else:
-                    fully_connected_nn.add(Dense(layer_size))
-                fully_connected_nn.add(Activation(activation))
-                fully_connected_nn.add(Dropout(dropout_p))
-            fully_connected_nn.add(Dense(n_classes))
-            fully_connected_nn.add(Activation('softmax'))
-
-            model.add_node(fully_connected_nn, name='fully_connected_nn',
-                           inputs=['filter_unit_' + str(n) for n in filter_sizes])
-            model.add_output(name='nn_output', input='fully_connected_nn')
-        else:
-            """
-                Will probably be deleted out. Still working on it...
-
-            for i, filter_size in enumerate(filter_sizes):
-                cnn_filter = Sequential()
-                cnn_filter.add(Convolution2D(n_feature_maps, filter_size, doc_vector_size,
-                                             input_shape=(1, doc_max_size, doc_vector_size)))
-                cnn_filter.add(Activation(activation))
-                cnn_filter.add(MaxPooling2D(pool_size=(doc_max_size - filter_size + 1, 1)))
-                cnn_filter.add(Flatten())
-                cnn_filters.append(cnn_filter)
-
-            model = Sequential()
-            model.add(Merge(cnn_filters, mode='concat'))
-
-            for layer_size in nn_layer_sizes:
-                model.add(Dense(layer_size))
-                model.add(Activation(activation))
-                model.add(Dropout(dropout_p))
-
-            model.add(Dense(n_classes))
-            model.add(Activation('softmax'))
-
-
-            print(doc_vector_size)
-            model = Sequential()
-            # VGG-like convolution stack
-            model.add(Convolution1D(2, 20, input_shape=(1, doc_vector_size)))
-            model.add(Activation('relu'))
-            model.add(Dropout(0.25))
-            model.add(MaxPooling1D(2))
-            model.add(Flatten())
-            model.add(Dense(100))
-            model.add(Activation(activation))
-            model.add(Dropout(.5))
-            model.add(Dense(2))
-            model.add(Activation('softmax'))
-            """
-            model = Sequential()
-            model.add(Convolution2D(30, 3, 3, input_shape=(1, doc_max_size, doc_vector_size)))
-            model.add(Activation('relu'))
-            model.add(Convolution2D(30, 3, 3))
-            model.add(Activation('relu'))
-            model.add(MaxPooling2D(pool_size=(2, 2)))
-            model.add(Dropout(0.25))
-
-            model.add(Convolution2D(20, 3, 3))
-            model.add(Activation('relu'))
-            model.add(Convolution2D(20, 3, 3))
-            model.add(Activation('relu'))
-            model.add(MaxPooling2D(pool_size=(2, 2)))
-            model.add(Dropout(0.25))
-
-            model.add(Flatten())
-            # Note: Keras does automatic shape inference.
-            model.add(Dense(256))
-            model.add(Activation('relu'))
-            model.add(Dropout(0.5))
-
-            model.add(Dense(2))
-            model.add(Activation('softmax'))
-
-
-
+        model.add_node(fully_connected_nn, name='fully_connected_nn',
+                       inputs=['filter_unit_' + str(n) for n in filter_sizes])
+        model.add_output(name='nn_output', input='fully_connected_nn')
         return model
 
     def train(self, X_train, Y_train, batch_size=32, n_epochs=10, model_name='cnn.h5py', plot=True, learning_rate=.1,
@@ -195,16 +124,11 @@ class DocNet:
             optim = optimization_method
 
         loss_history = LossHistory()
-        checkpointer = ModelCheckpoint(filepath=model_name, verbose=1, save_best_only=True)
 
-        if self.is_graph:
-            self.model.compile(optimizer=optim, loss={'nn_output': 'categorical_crossentropy'})
-            self.model.fit({'data': X_train, 'nn_output': Y_train}, batch_size=batch_size, nb_epoch=n_epochs,
-                           callbacks=[loss_history], validation_split=valid_split, shuffle=True, verbose=verbose)
-        else:
-            self.model.compile(optimizer=optim, loss='binary_crossentropy')
-            self.model.fit(X_train, Y_train, batch_size=batch_size, nb_epoch=n_epochs, callbacks=[loss_history],
-                           validation_split=valid_split, verbose=verbose)
+        self.model.compile(optimizer=optim, loss={'nn_output': 'categorical_crossentropy'})
+        self.model.fit({'data': X_train, 'nn_output': Y_train}, batch_size=batch_size, nb_epoch=n_epochs,
+                       callbacks=[loss_history], validation_split=valid_split, shuffle=True,
+                       verbose=verbose)
 
         # Plot the the validation and training loss
 
@@ -228,12 +152,7 @@ class DocNet:
         self.model.save_weights('final_' + model_name, overwrite=True)
 
     def test(self, X_test, Y_test, print_output=True):
-        predictions = None
-
-        if self.is_graph:
-            predictions = self.predict_classes(X_test)
-        else:
-            predictions = self.model.predict_classes(X_test)
+        predictions = self.predict_classes(X_test)
         accuracy = accuracy_score(Y_test, predictions)
         f1 = f1_score(Y_test, predictions)
         auc = roc_auc_score(Y_test, predictions)
