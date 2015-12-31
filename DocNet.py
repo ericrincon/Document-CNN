@@ -4,8 +4,6 @@ import matplotlib
 
 import numpy
 
-from keras.models import Sequential
-
 from keras.layers.core import Dense
 from keras.layers.core import Dropout
 from keras.layers.core import Activation
