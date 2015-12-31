@@ -109,7 +109,6 @@ def main():
                 skipthought = False
         elif opt == '--dropout':
             dropout = float(arg)
-            print(dropout)
         else:
             print('Error: {} not recognized'.format(opt))
             sys.exit(2)
@@ -128,7 +127,7 @@ def main():
 
 
     print('...creating model')
-    doc_cnn = DocNet(doc_max_size=doc_max, n_feature_maps=2, graph=use_graph, doc_vector_size=doc_vector_size,
+    doc_cnn = DocNet(doc_max_size=doc_max, n_feature_maps=2, doc_vector_size=doc_vector_size,
                      hidden_layer_sizes=hidden_layers, filter_sizes=filters, convolution=convolution_type,
                      dropout_p=dropout)
 
