@@ -29,14 +29,15 @@ def main():
     hidden_layers = [100]
     filters = [2, 3, 4, 5, 6]
     convolution_type = 2
-    optimization_method = 'adagrad'
+    optimization_method = 'adam'
     headless_plot = False
     skipthought = False
     dropout = .5
+    activation_func = 'relu'
     options = ['input_folder=', 'd2v_model_path=', 'n_examples=', 'n_epochs=', 'learning_rate=', 'mini_batch_size=',
                'momentum=', 'lr_decay=', 'help=', 'test_folder=', 'doc_max_size=', 'graph=', 'cnn_model_name=',
                'doc_vector_size=', 'verbose=', 'hidden_layers=', 'filter_sizes=', 'convolution_type=',
-               'optimization_method=', 'headless_plot=', 'skipthoughts=', 'dropout=']
+               'optimization_method=', 'headless_plot=', 'skipthoughts=', 'dropout=', 'activation_func=']
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'i:m:n:e:l:b:w:d:h:t:g:c:v:z:f:', options)
     except getopt.GetoptError:
@@ -109,6 +110,8 @@ def main():
                 skipthought = False
         elif opt == '--dropout':
             dropout = float(arg)
+        elif opt == '--activation_func':
+            activation_func = arg
         else:
             print('Error: {} not recognized'.format(opt))
             sys.exit(2)
@@ -129,7 +132,7 @@ def main():
     print('...creating model')
     doc_cnn = DocNet(doc_max_size=doc_max, n_feature_maps=2, doc_vector_size=doc_vector_size,
                      hidden_layer_sizes=hidden_layers, filter_sizes=filters, convolution=convolution_type,
-                     dropout_p=dropout)
+                     dropout_p=dropout, activation_func=activation_func)
 
     print('...training')
     doc_cnn.train(X_train, Y_train, n_epochs=n_epochs, batch_size=mini_batch_size, learning_rate=learning_rate,

@@ -54,7 +54,10 @@ class LossHistory(Callback):
 class DocNet:
     def __init__(self, doc_vector_size=100, filter_sizes=[2, 3, 4, 5, 6], dropout_p=0.5, doc_max_size=50,
                  n_feature_maps=2, n_classes=2, embedding=False, hidden_layer_sizes=[100], convolution=2,
-                 activation_func='relu'):
+                 activation_func='relu', model_path=None):
+        if model_path:
+            model =
+        else:
         if convolution == 1:
             filter_sizes = [20, 30, 40, 50]
         self.model = self.create_model(doc_vector_size=doc_vector_size, filter_sizes=filter_sizes, dropout_p=dropout_p,
@@ -173,3 +176,5 @@ class DocNet:
 
         predicted_classes = numpy.argmax(predictions['nn_output'], axis=1)
         return predicted_classes
+
+
