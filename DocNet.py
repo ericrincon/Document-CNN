@@ -55,15 +55,13 @@ class DocNet:
     def __init__(self, doc_vector_size=100, filter_sizes=[2, 3, 4, 5, 6], dropout_p=0.5, doc_max_size=50,
                  n_feature_maps=2, n_classes=2, embedding=False, hidden_layer_sizes=[100], convolution=2,
                  activation_func='relu', model_path=None):
-        if model_path:
-            model =
-        else:
-        if convolution == 1:
-            filter_sizes = [20, 30, 40, 50]
-        self.model = self.create_model(doc_vector_size=doc_vector_size, filter_sizes=filter_sizes, dropout_p=dropout_p,
-                                       doc_max_size=doc_max_size, n_feature_maps=n_feature_maps, n_classes=n_classes,
-                                       embedding=embedding, nn_layer_sizes=hidden_layer_sizes, convolution=convolution,
-                                       activation=activation_func)
+        if not model_path:
+            if convolution == 1:
+                filter_sizes = [20, 30, 40, 50]
+            self.model = self.create_model(doc_vector_size=doc_vector_size, filter_sizes=filter_sizes, dropout_p=dropout_p,
+                                           doc_max_size=doc_max_size, n_feature_maps=n_feature_maps, n_classes=n_classes,
+                                           embedding=embedding, nn_layer_sizes=hidden_layer_sizes, convolution=convolution,
+                                           activation=activation_func)
 
     def create_model(self, doc_vector_size, filter_sizes, dropout_p, doc_max_size,
                      n_feature_maps, n_classes, activation, embedding, nn_layer_sizes, convolution):
@@ -73,6 +71,8 @@ class DocNet:
             model.add_input(name='data', input_shape=(1, doc_max_size, doc_vector_size))
         elif convolution == 1:
             model.add_input(name='data', input_shape=(1, doc_vector_size))
+
+        model.add_node(Dropout(.20), input='data', name='input_dropout')
 
         for filter_size in filter_sizes:
             node = containers.Sequential()
@@ -91,7 +91,7 @@ class DocNet:
                 node.add(MaxPooling1D(pool_length=doc_vector_size - filter_size + 1))
 
             node.add(Flatten())
-            model.add_node(node, name='filter_unit_' + str(filter_size), input='data')
+            model.add_node(node, name='filter_unit_' + str(filter_size), input='input_dropout')
 
         fully_connected_nn = containers.Sequential()
 
@@ -154,20 +154,26 @@ class DocNet:
 
         self.model.save_weights('final_' + model_name, overwrite=True)
 
-    def test(self, X_test, Y_test, print_output=True):
+    def test(self, X_test, Y_test, print_metrics=True, print_output=True):
         predictions = self.predict_classes(X_test)
+
+        # Get metrics
         accuracy = accuracy_score(Y_test, predictions)
         f1 = f1_score(Y_test, predictions)
         auc = roc_auc_score(Y_test, predictions)
         precision = precision_score(Y_test, predictions)
         recall = recall_score(Y_test, predictions)
 
-        if print_output:
+        if print_metrics:
             print('Accuracy: ', accuracy)
             print('F1: ', f1)
             print('AUC: ', auc)
             print('Precision: ', precision)
             print('Recall: ', recall)
+
+        if print_output:
+            for i in range(Y_test.shape[0]):
+                print('Predicted: {} | True: {}'.format(predictions[i], Y_test[i]))
 
         return accuracy, f1, auc, precision, recall
 
@@ -175,6 +181,5 @@ class DocNet:
         predictions = self.model.predict({'data': x})
 
         predicted_classes = numpy.argmax(predictions['nn_output'], axis=1)
+
         return predicted_classes
-
-

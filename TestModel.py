@@ -1,7 +1,8 @@
 import os
 import getopt
-
+import numpy
 from DocNet import DocNet
+
 import ExperimentScript
 
 def main():

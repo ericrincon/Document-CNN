@@ -11,6 +11,8 @@ from DocNet import DocNet
     Script to test out DocNet on the IMDB sentiment analysis.
 """
 
+d2v_model = None
+
 def main():
     folder_path = None
     d2v_model_path = None
@@ -153,6 +155,8 @@ def main():
 
 
 def get_neg_pos(folder_path, d2v_model_path, examples_limit=None, sentence_limit=50):
+    global d2v_model
+
     folders = Doc2VecTool.get_all_folders(folder_path)
     neg_folder = None
     pos_folder = None
@@ -167,8 +171,10 @@ def get_neg_pos(folder_path, d2v_model_path, examples_limit=None, sentence_limit
     pos_examples = Doc2VecTool.get_all_files(pos_folder)
 
     # Load Doc2vec model
-    print('...loading Doc2Vec model')
-    d2v_model = Doc2Vec.load(d2v_model_path)
+
+    if not d2v_model:
+        print('...loading Doc2Vec model')
+        d2v_model = Doc2Vec.load(d2v_model_path)
 
     # Load the positive and negative examples
     print('...processing data')
