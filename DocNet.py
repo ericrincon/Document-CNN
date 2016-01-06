@@ -57,13 +57,56 @@ class DocNet:
                  activation_func='relu', model_path=None):
         if not model_path:
             if convolution == 1:
-                filter_sizes = [20, 30, 40, 50]
+                filter_sizes = [2, 3, 4, 5]
             self.model = self.create_model(doc_vector_size=doc_vector_size, filter_sizes=filter_sizes, dropout_p=dropout_p,
                                            doc_max_size=doc_max_size, n_feature_maps=n_feature_maps, n_classes=n_classes,
                                            embedding=embedding, nn_layer_sizes=hidden_layer_sizes, convolution=convolution,
                                            activation=activation_func)
 
-    def create_model(self, doc_vector_size, filter_sizes, dropout_p, doc_max_size,
+
+
+    def create_model(self, word_vector_size, filter_sizes, dropout_p, max_words, max_sentences, n_feature_maps,
+                     n_classes, activation, embedding, nn_layer_sizes):
+        model = Graph()
+
+        model.add_input(name='data', input_shape=(1, max_words, word_vector_size * max_sentences))
+
+        model.add_node(Dropout(0.20), input='data', name='input_dropout')
+
+        for filter_size in filter_sizes:
+            node = containers.Sequential()
+
+            node.add(Convolution2D(n_feature_maps, filter_size, word_vector_size,
+                                   input_shape=(1, max_words, word_vector_size * max_sentences)))
+
+            node.add(Activation(activation))
+
+            node.add(MaxPooling2D(pool_size=(word_vector_size - filter_size + 1, 1)))
+            node.add(Flatten())
+
+            model.add_node(node, name='filter_unit_' + str(filter_size), input='input_dropout')
+
+        fully_connected_nn = containers.Sequential()
+
+        # Add hidden layers for the final nn layers.
+
+        for i, layer_size in enumerate(nn_layer_sizes):
+            if i == 0:
+                fully_connected_nn.add(Dense(layer_size, input_dim=470))
+
+            else:
+                fully_connected_nn.add(Dense(layer_size))
+            fully_connected_nn.add(Activation(activation))
+            fully_connected_nn.add(Dropout(dropout_p))
+        fully_connected_nn.add(Dense(n_classes))
+        fully_connected_nn.add(Activation('softmax'))
+
+        model.add_node(fully_connected_nn, name='fully_connected_nn',
+                       inputs=['filter_unit_' + str(n) for n in filter_sizes])
+        model.add_output(name='nn_output', input='fully_connected_nn')
+        return model
+
+    def create_d2v_model(self, doc_vector_size, filter_sizes, dropout_p, doc_max_size,
                      n_feature_maps, n_classes, activation, embedding, nn_layer_sizes, convolution):
         model = Graph()
 
@@ -72,7 +115,7 @@ class DocNet:
         elif convolution == 1:
             model.add_input(name='data', input_shape=(1, doc_vector_size))
 
-        model.add_node(Dropout(.20), input='data', name='input_dropout')
+        model.add_node(Dropout(0.20), input='data', name='input_dropout')
 
         for filter_size in filter_sizes:
             node = containers.Sequential()
@@ -91,6 +134,7 @@ class DocNet:
                 node.add(MaxPooling1D(pool_length=doc_vector_size - filter_size + 1))
 
             node.add(Flatten())
+
             model.add_node(node, name='filter_unit_' + str(filter_size), input='input_dropout')
 
         fully_connected_nn = containers.Sequential()
@@ -100,7 +144,7 @@ class DocNet:
         for i, layer_size in enumerate(nn_layer_sizes):
             if i == 0:
                 if convolution == 2:
-                    fully_connected_nn.add(Dense(layer_size, input_dim=n_feature_maps * len(filter_sizes)))
+                    fully_connected_nn.add(Dense(layer_size, input_dim=470))
 
                 elif convolution == 1:
                     fully_connected_nn.add(Dense(layer_size, input_dim=n_feature_maps * len(filter_sizes)))
