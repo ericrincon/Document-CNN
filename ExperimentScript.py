@@ -4,6 +4,7 @@ import Doc2VecTool
 import getopt
 import sys
 import numpy
+import h5py
 
 from gensim.models import Doc2Vec
 from DocNet import DocNet
@@ -25,6 +26,7 @@ def main():
     test_folder = None
     doc_max = 50
     use_graph = True
+    n_feature_maps = 200
     cnn_model_name = 'cnn.h5py'
     doc_vector_size = 100
     verbose = 1
@@ -35,11 +37,15 @@ def main():
     headless_plot = False
     skipthought = False
     dropout = .5
+    w2v = False
     activation_func = 'relu'
+    w2v_size = 300
+
     options = ['input_folder=', 'd2v_model_path=', 'n_examples=', 'n_epochs=', 'learning_rate=', 'mini_batch_size=',
                'momentum=', 'lr_decay=', 'help=', 'test_folder=', 'doc_max_size=', 'graph=', 'cnn_model_name=',
                'doc_vector_size=', 'verbose=', 'hidden_layers=', 'filter_sizes=', 'convolution_type=',
-               'optimization_method=', 'headless_plot=', 'skipthoughts=', 'dropout=', 'activation_func=']
+               'optimization_method=', 'headless_plot=', 'skipthoughts=', 'dropout=', 'activation_func=', 'w2v_size=',
+               'n_feature_maps=']
     try:
         opts, args = getopt.getopt(sys.argv[1:], 'i:m:n:e:l:b:w:d:h:t:g:c:v:z:f:', options)
     except getopt.GetoptError:
@@ -92,10 +98,15 @@ def main():
         elif opt in ('-f', '--filter_sizes'):
             filters = []
 
-            filters_sizes = arg.split(',')
+            if arg[0] == '[':
+                filters_sizes = arg.split(',')
+                filters_sizes.pop(0)
+                filters_sizes.pop(-1)
 
-            for filter in filters_sizes:
-                filters.append(int(filter))
+                for filter in filters_sizes:
+                    filters.append(int(filter))
+            else:
+                filters = [i for i in range(2, int(arg))]
         elif opt == '--convolution_type':
             convolution_type = int(arg)
         elif opt == '--optimization_method':
@@ -114,45 +125,68 @@ def main():
             dropout = float(arg)
         elif opt == '--activation_func':
             activation_func = arg
+        elif opt == '--w2v_size':
+            w2v_size = int(arg)
+        elif opt == '--doc_vector_size':
+            doc_vector_size = int(arg)
+        elif opt == '--n_feature_maps':
+            n_feature_maps = int(arg)
         else:
             print('Error: {} not recognized'.format(opt))
             sys.exit(2)
+    if not w2v:
+        assert folder_path is not None, 'You must specify a folder!'
 
-    assert folder_path is not None, 'You must specify a folder!'
-    assert d2v_model_path is not None, 'You must specify a d2v model path!'
+        assert d2v_model_path is not None, 'You must specify a d2v model path!'
 
     # Get training files
-    print('...reading files')
-    if convolution_type == 2 and not skipthought:
+    print('reading files...')
+    if convolution_type == 2 and not skipthought and not w2v:
         X_train, Y_train = get_neg_pos(folder_path, d2v_model_path, n_examples, doc_max)
-    elif convolution_type == 1 and not skipthought:
+    elif convolution_type == 1 and not skipthought and not w2v:
         X_train, Y_train = read_docs_file(folder_path, d2v_model_path, doc_vector_size, n_examples)
     elif skipthought:
         print('not...ready...')
+    elif w2v:
+        print('loaded data...')
+        train_data, test_data, train_labels, test_labels = load_w2v_data('train.hdf5', 'test.hdf5')
 
+    if not w2v:
+        print('creating model...')
+        doc_cnn = DocNet(doc_max_size=doc_max, n_feature_maps=n_feature_maps, vector_size=doc_vector_size,
+                         hidden_layer_sizes=hidden_layers, filter_sizes=filters, convolution=convolution_type,
+                         dropout_p=dropout, activation_func=activation_func)
 
-    print('...creating model')
-    doc_cnn = DocNet(doc_max_size=doc_max, n_feature_maps=2, doc_vector_size=doc_vector_size,
-                     hidden_layer_sizes=hidden_layers, filter_sizes=filters, convolution=convolution_type,
-                     dropout_p=dropout, activation_func=activation_func)
+        print('training...')
+        doc_cnn.train(X_train, Y_train, n_epochs=n_epochs, batch_size=mini_batch_size, learning_rate=learning_rate,
+                      lr_decay=learning_rate_decay, momentum=momentum, nesterov=True, model_name=cnn_model_name,
+                      verbose=verbose, optimization_method=optimization_method, plot_headless=headless_plot)
 
-    print('...training')
-    doc_cnn.train(X_train, Y_train, n_epochs=n_epochs, batch_size=mini_batch_size, learning_rate=learning_rate,
-                  lr_decay=learning_rate_decay, momentum=momentum, nesterov=True, model_name=cnn_model_name,
-                  verbose=verbose, optimization_method=optimization_method, plot_headless=headless_plot)
-
-    # Get test files
-    print('...testing')
-    if convolution_type == 2:
-        X_test, Y_test = get_neg_pos(test_folder, d2v_model_path, n_examples, doc_max)
+        # Get test files
+        print('testing...')
+        if convolution_type == 2:
+            X_test, Y_test = get_neg_pos(test_folder, d2v_model_path, n_examples, doc_max)
+        else:
+            X_test, Y_test = read_docs_file(folder_path, d2v_model_path, doc_vector_size, n_examples)
+        Y_test_array = numpy.zeros(Y_test.shape[0])
+        Y_test_array[Y_test[:, 1] == 1] = 1
     else:
-        X_test, Y_test = read_docs_file(folder_path, d2v_model_path, doc_vector_size, n_examples)
-    Y_test_array = numpy.zeros(Y_test.shape[0])
-    Y_test_array[Y_test[:, 1] == 1] = 1
-
+        doc_cnn = DocNet(doc_max_size=doc_max, n_feature_maps=2, vector_size=doc_vector_size,
+                         hidden_layer_sizes=hidden_layers, filter_sizes=filters, convolution=convolution_type,
+                         dropout_p=dropout, activation_func=activation_func)
     accuracy, f1, auc, precision, recall = doc_cnn.test(X_test, Y_test_array)
 
 
+
+def load_w2v_data(train_path, test_path):
+    train_data = h5py.File(train_path)['data']
+    test_data = h5py.File(test_path)['data']
+
+    labels = numpy.zeros((50000, 2))
+    labels[:25000, 0] = 1
+    labels[25000:, 1] = 1
+
+    return train_data, test_data, labels, labels
 
 def get_neg_pos(folder_path, d2v_model_path, examples_limit=None, sentence_limit=50):
     global d2v_model

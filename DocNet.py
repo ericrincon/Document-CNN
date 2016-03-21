@@ -18,7 +18,6 @@ from keras.layers.convolutional import Convolution2D
 from keras.layers.convolutional import Convolution1D
 from keras.layers.convolutional import MaxPooling2D
 from keras.layers.convolutional import MaxPooling1D
-
 from keras.callbacks import Callback
 from keras.callbacks import ModelCheckpoint
 
@@ -52,17 +51,20 @@ class LossHistory(Callback):
 
 
 class DocNet:
-    def __init__(self, doc_vector_size=100, filter_sizes=[2, 3, 4, 5, 6], dropout_p=0.5, doc_max_size=50,
-                 n_feature_maps=2, n_classes=2, embedding=False, hidden_layer_sizes=[100], convolution=2,
+    def __init__(self, vector_size=100, filter_sizes=[2, 3, 4, 5, 6,7,8,9,10,11,12,13,14,15], dropout_p=0.5, doc_max_size=50,
+                 n_feature_maps=200, n_classes=2, embedding=False, hidden_layer_sizes=[200,200], convolution=2,
                  activation_func='relu', model_path=None):
         if not model_path:
             if convolution == 1:
                 filter_sizes = [2, 3, 4, 5]
+            """
             self.model = self.create_model(doc_vector_size=doc_vector_size, filter_sizes=filter_sizes, dropout_p=dropout_p,
                                            doc_max_size=doc_max_size, n_feature_maps=n_feature_maps, n_classes=n_classes,
                                            embedding=embedding, nn_layer_sizes=hidden_layer_sizes, convolution=convolution,
                                            activation=activation_func)
-
+            """
+            self.model = self.create_d2v_model(vector_size, filter_sizes, dropout_p, doc_max_size, n_feature_maps,
+                                               n_classes, activation_func, embedding, hidden_layer_sizes, convolution)
 
 
     def create_model(self, word_vector_size, filter_sizes, dropout_p, max_words, max_sentences, n_feature_maps,
@@ -77,7 +79,7 @@ class DocNet:
             node = containers.Sequential()
 
             node.add(Convolution2D(n_feature_maps, filter_size, word_vector_size,
-                                   input_shape=(1, max_words, word_vector_size * max_sentences)))
+                                   input_shape=(1, max_sentences, )))
 
             node.add(Activation(activation))
 
@@ -144,7 +146,7 @@ class DocNet:
         for i, layer_size in enumerate(nn_layer_sizes):
             if i == 0:
                 if convolution == 2:
-                    fully_connected_nn.add(Dense(layer_size, input_dim=470))
+                    fully_connected_nn.add(Dense(layer_size, input_dim=n_feature_maps * len(filter_sizes)))
 
                 elif convolution == 1:
                     fully_connected_nn.add(Dense(layer_size, input_dim=n_feature_maps * len(filter_sizes)))

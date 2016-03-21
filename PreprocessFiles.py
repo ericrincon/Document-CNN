@@ -2,12 +2,17 @@ import sys
 import getopt
 import Doc2VecTool
 import os
+import nltk
+import numpy
+import h5py
+
+from gensim.models import Word2Vec
 
 """
     Helper script that takes in all the IMDB reviews and writes them to one file. This file also write a new text file
     with the data preprocessed.
 """
-
+w2v_model = None
 
 def main():
     train_folders_path = ''
@@ -17,12 +22,18 @@ def main():
     test_folders_output_path = ''
     test_output_file_name = ''
     sentences = True
+    w2v = True
+    max_sentences = 10
+    max_words = 20
+    w2v_model_path = None
+    w2v_size = None
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], 'f:o:p:s:', ['train_folders_path=', 'train_output_file_name=',
+        opts, args = getopt.getopt(sys.argv[1:], 'f:o:p:s:w:m:', ['train_folders_path=', 'train_output_file_name=',
                                                               'train_folder_output_path=', 'test_folders_path=',
                                                               'test_output_file_name=', 'test_folders_output_path=',
-                                                              'sentences='])
+                                                              'sentences=', 'w2v=', 'max_sentences=',
+                                                              'w2v_model_path=', 'max_words=', 'w2v_size='])
     except getopt.GetoptError:
         sys.exit(2)
 
@@ -44,44 +55,66 @@ def main():
 
             if option == 0:
                 sentences = False
+        elif opt in ('-w', '--w2v'):
+            option = int(arg)
+
+            if option == 0:
+                w2v = False
+        elif opt in ('-m', '--max-sentences'):
+            max_sentences = int(arg)
+        elif opt == '--w2v_model_path':
+            w2v_model_path = arg
+        elif opt == '--max_words':
+            max_words = arg
+        elif opt == '--w2v_size':
+            w2v_size = int(arg)
         else:
             print('No such arg: ', opt)
             sys.exit(2)
     print('...start')
 
-    paths = ['neg/', 'pos/', 'unsup/']
-    updates_paths = []
+    if w2v:
+        assert w2v_model_path is not None, 'Provide a path to a w2v model!'
+        assert w2v_size is not None, 'Provide a size for the w2v vector'
 
-    for path in paths:
-        updates_paths.append(train_folders_path + path)
+        preprocess_documents(train_folders_path, w2v_model_path, max_sentences, max_words, w2v_size, 'train.hdf5')
+        preprocess_documents(test_folders_path, w2v_model_path, max_sentences, max_words, w2v_size, 'test.hdf5')
 
-    all_sentences_file = open(train_folder_output_path + train_output_file_name, 'w+')
+    else:
 
-    for path in updates_paths:
-        files = Doc2VecTool.get_all_files(path)
+        paths = ['neg/', 'pos/', 'unsup/']
+        updates_paths = []
 
-        for file_path in files:
-            if sentences:
-                preprocess_sentences(file_path, path, train_folder_output_path, all_sentences_file)
-            else:
-                preprocess_documents(file_path, all_sentences_file)
-    # Handle test files
+        for path in paths:
+            updates_paths.append(train_folders_path + path)
 
-    paths = ['neg/', 'pos/']
+            all_sentences_file = open(train_folder_output_path + train_output_file_name, 'w+')
 
-    if not sentences:
-        test_sentence_file = open(test_output_file_name, 'w+')
+        for path in updates_paths:
+            files = Doc2VecTool.get_all_files(path)
 
-    for path in paths:
-        updated_path = test_folders_path + path
+            for file_path in files:
+                if sentences:
+                    preprocess_sentences(file_path, path, train_folder_output_path, all_sentences_file)
+                else:
+                    preprocess_documents(file_path, all_sentences_file)
+        # Handle test files
 
-        files = Doc2VecTool.get_all_files(updated_path)
+        paths = ['neg/', 'pos/']
 
-        for file_path in files:
-            if sentences:
-                preprocess_sentences(file_path, updated_path, test_folders_output_path)
-            else:
-                preprocess_documents(file_path, test_sentence_file)
+        if not sentences:
+            test_sentence_file = open(test_output_file_name, 'w+')
+
+        for path in paths:
+            updated_path = test_folders_path + path
+
+            files = Doc2VecTool.get_all_files(updated_path)
+
+            for file_path in files:
+                if sentences:
+                    preprocess_sentences(file_path, updated_path, test_folders_output_path)
+                else:
+                    preprocess_documents(file_path, test_sentence_file)
 
 
 
@@ -122,6 +155,57 @@ def preprocess_documents(file_path, all_sentences_file):
         sentence_to_write = sentence_to_write + ' ' + preprocesed_sent
     all_sentences_file.write(sentence_to_write + '\n')
 
+
+def preprocess_documents(folder, w2v_model_path, max_sentences, max_words, w2v_size, name=None):
+    folders = Doc2VecTool.get_all_folders(folder)
+    global w2v_model
+
+    word_matrix = numpy.zeros((25000, 1, max_words, max_sentences * w2v_size))
+
+    if not w2v_model:
+        print('loading w2v model...')
+        w2v_model = Word2Vec.load_word2vec_format(w2v_model_path, binary=True)
+
+
+    neg_folder = None
+    pos_folder = None
+
+    for folder in folders:
+        if 'neg' in folder:
+            neg_folder = folder
+        elif 'pos' in folder:
+            pos_folder = folder
+
+    folders = [neg_folder, pos_folder]
+
+    for folder in folders:
+        files = Doc2VecTool.get_all_files(folder)
+
+        for doc_i, file in enumerate(files):
+            file_body = open(file).read()
+            sentences = nltk.sent_tokenize(file_body)
+            sentences_matrix = numpy.zeros((max_words, w2v_size * max_sentences))
+
+            for n_sentence, sentence in enumerate(sentences):
+                if n_sentence == max_sentences:
+                    break
+                words = nltk.word_tokenize(sentence)
+
+                #sentence_matrix = numpy.zeros((max_words, w2v_size))
+
+                for i, word in enumerate(words):
+                    if i == max_words:
+                        break
+                    try:
+                        sentences_matrix[i, n_sentence * w2v_size: w2v_size  * (n_sentence + 1)] = w2v_model[word]
+                    except KeyError:
+                        continue
+
+            sentences_matrix = numpy.reshape(sentences_matrix, (1, sentences_matrix.shape[0], sentences_matrix.shape[1]))
+            word_matrix[doc_i, :, :, :] = sentences_matrix
+
+    output = h5py.File(name)
+    output.create_dataset('data', data=word_matrix)
 
 
 if __name__ == '__main__':
